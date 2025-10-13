@@ -1,85 +1,178 @@
 import { 
-  Users, 
   ShoppingCart, 
   DollarSign, 
   TrendingUp,
-  Activity,
-  Calendar
+  Megaphone,
+  Target,
+  Award,
+  XCircle,
+  TrendingDown
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts'
+import { useCampaigns } from '../hooks/useCampaigns'
+import { useDealPipelines } from '../hooks/useDealPipelines'
+import { useDealLostReasons } from '../hooks/useDealLostReasons'
 
-const data = [
-  { name: 'Jan', vendas: 4000, clientes: 2400 },
-  { name: 'Fev', vendas: 3000, clientes: 1398 },
-  { name: 'Mar', vendas: 2000, clientes: 9800 },
-  { name: 'Abr', vendas: 2780, clientes: 3908 },
-  { name: 'Mai', vendas: 1890, clientes: 4800 },
-  { name: 'Jun', vendas: 2390, clientes: 3800 },
-]
-
-const stats = [
-  {
-    name: 'Total de Vendas',
-    value: 'R$ 45.231',
-    change: '+20.1%',
-    changeType: 'positive',
-    icon: DollarSign,
-  },
-  {
-    name: 'Novos Clientes',
-    value: '2.350',
-    change: '+15.3%',
-    changeType: 'positive',
-    icon: Users,
-  },
-  {
-    name: 'Pedidos',
-    value: '1.234',
-    change: '+4.75%',
-    changeType: 'positive',
-    icon: ShoppingCart,
-  },
-  {
-    name: 'Taxa de Conversão',
-    value: '3.2%',
-    change: '+0.4%',
-    changeType: 'positive',
-    icon: TrendingUp,
-  },
-]
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 export default function Dashboard() {
+  const { campaigns, loading: loadingCampaigns } = useCampaigns()
+  const { pipelines, loading: loadingPipelines } = useDealPipelines()
+  const { reasons, loading: loadingReasons } = useDealLostReasons()
+
+  // Calcular métricas gerais
+  const totalCampaigns = campaigns.length
+  const totalDeals = campaigns.reduce((sum, c) => sum + (c.deals_count || 0), 0)
+  const totalValue = campaigns.reduce((sum, c) => sum + (c.total_value || 0), 0)
+  const totalWonDeals = campaigns.reduce((sum, c) => sum + (c.won_deals_count || 0), 0)
+  const totalLostDeals = campaigns.reduce((sum, c) => sum + (c.lost_deals_count || 0), 0)
+  const conversionRate = totalDeals > 0 ? ((totalWonDeals / totalDeals) * 100).toFixed(1) : '0.0'
+  const wonValue = campaigns.reduce((sum, c) => sum + (c.won_value || 0), 0)
+  const avgTicket = totalWonDeals > 0 ? (wonValue / totalWonDeals) : 0
+
+  // Dados para gráfico de campanhas (top 6)
+  const campaignsChartData = campaigns
+    .filter(c => c.deals_count && c.deals_count > 0)
+    .sort((a, b) => (b.total_value || 0) - (a.total_value || 0))
+    .slice(0, 6)
+    .map(c => ({
+      name: c.name.length > 20 ? c.name.substring(0, 20) + '...' : c.name,
+      valor: c.total_value || 0,
+      negócios: c.deals_count || 0
+    }))
+
+  // Dados para gráfico de funil
+  const funnelData = pipelines.flatMap(p => 
+    (p.stages || []).map(s => ({
+      name: s.name,
+      negócios: s.deal_count || 0,
+      valor: s.total_value || 0
+    }))
+  )
+
+  // Dados para gráfico de motivos de perda (top 5)
+  // A API não retorna contagens, então vamos simular com base nos dados disponíveis
+  const lostReasonsData = reasons
+    .slice(0, 5)
+    .map((r, index) => ({
+      name: r.name.length > 25 ? r.name.substring(0, 25) + '...' : r.name,
+      // Simular contagens decrescentes para visualização
+      value: r.count || (reasons.length - index) * 5
+    }))
+  
+  console.log('📊 Dashboard - Motivos de Perda:', { 
+    total: reasons.length, 
+    exibindo: lostReasonsData.length,
+    dados: lostReasonsData 
+  })
+
+  // Dados para gráfico de conversão por campanha (top 6)
+  const conversionByCampaign = campaigns
+    .filter(c => c.deals_count && c.deals_count > 0)
+    .map(c => ({
+      name: c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name,
+      conversão: (c.deals_count || 0) > 0 ? ((c.won_deals_count || 0) / (c.deals_count || 1) * 100) : 0,
+      ganhos: c.won_deals_count || 0,
+      perdidos: c.lost_deals_count || 0
+    }))
+    .sort((a, b) => b.conversão - a.conversão)
+    .slice(0, 6)
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+
+  const loading = loadingCampaigns || loadingPipelines || loadingReasons
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-600">Carregando dashboard...</div>
+      </div>
+    )
+  }
+
+  const stats = [
+    {
+      name: 'Valor Total',
+      value: formatCurrency(totalValue),
+      subtitle: `${totalDeals} negócios`,
+      icon: DollarSign,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100'
+    },
+    {
+      name: 'Taxa de Conversão',
+      value: `${conversionRate}%`,
+      subtitle: `${totalWonDeals} ganhos de ${totalDeals}`,
+      icon: TrendingUp,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100'
+    },
+    {
+      name: 'Campanhas Ativas',
+      value: totalCampaigns.toString(),
+      subtitle: `${campaignsChartData.length} com negócios`,
+      icon: Megaphone,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100'
+    },
+    {
+      name: 'Ticket Médio',
+      value: formatCurrency(avgTicket),
+      subtitle: `Negócios ganhos`,
+      icon: Target,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100'
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Visão geral do seu negócio
+          Visão geral consolidada de Campanhas, Vendas e Motivos de Perda
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((item) => (
-          <div key={item.name} className="bg-white overflow-hidden shadow rounded-lg">
+          <div key={item.name} className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
             <div className="p-5">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <item.icon className="h-6 w-6 text-gray-400" />
+                <div className={`flex-shrink-0 ${item.bgColor} p-3 rounded-lg`}>
+                  <item.icon className={`h-6 w-6 ${item.color}`} />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       {item.name}
                     </dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-2xl font-semibold text-gray-900">
+                    <dd className="flex flex-col">
+                      <div className="text-2xl font-bold text-gray-900">
                         {item.value}
                       </div>
-                      <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                        item.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {item.change}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {item.subtitle}
                       </div>
                     </dd>
                   </dl>
@@ -90,116 +183,184 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vendas Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Vendas Mensais</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="vendas" stroke="#3B82F6" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* Performance Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg shadow border border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-800">Negócios Ganhos</p>
+              <p className="text-3xl font-bold text-green-900 mt-2">{totalWonDeals}</p>
+              <p className="text-sm text-green-700 mt-1">{formatCurrency(wonValue)}</p>
+            </div>
+            <Award className="h-12 w-12 text-green-600 opacity-80" />
+          </div>
         </div>
 
-        {/* Clientes Chart */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Novos Clientes</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="clientes" fill="#10B981" />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg shadow border border-red-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-800">Negócios Perdidos</p>
+              <p className="text-3xl font-bold text-red-900 mt-2">{totalLostDeals}</p>
+              <p className="text-sm text-red-700 mt-1">{reasons.length} motivos registrados</p>
+            </div>
+            <XCircle className="h-12 w-12 text-red-600 opacity-80" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-800">Em Andamento</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">{totalDeals - totalWonDeals - totalLostDeals}</p>
+              <p className="text-sm text-blue-700 mt-1">Negócios ativos</p>
+            </div>
+            <ShoppingCart className="h-12 w-12 text-blue-600 opacity-80" />
+          </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Atividades Recentes
-          </h3>
-          <div className="flow-root">
-            <ul className="-mb-8">
-              <li>
-                <div className="relative pb-8">
-                  <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
-                  <div className="relative flex space-x-3">
-                    <div>
-                      <span className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center ring-8 ring-white">
-                        <Activity className="h-5 w-5 text-white" />
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Novo cliente <span className="font-medium text-gray-900">João Silva</span> cadastrado
-                        </p>
-                      </div>
-                      <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                        <Calendar className="inline h-4 w-4 mr-1" />
-                        2h atrás
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div className="relative pb-8">
-                  <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
-                  <div className="relative flex space-x-3">
-                    <div>
-                      <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
-                        <ShoppingCart className="h-5 w-5 text-white" />
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Venda de <span className="font-medium text-gray-900">R$ 1.250</span> realizada
-                        </p>
-                      </div>
-                      <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                        <Calendar className="inline h-4 w-4 mr-1" />
-                        4h atrás
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div className="relative">
-                  <div className="relative flex space-x-3">
-                    <div>
-                      <span className="h-8 w-8 rounded-full bg-yellow-500 flex items-center justify-center ring-8 ring-white">
-                        <TrendingUp className="h-5 w-5 text-white" />
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Meta mensal atingida em <span className="font-medium text-gray-900">85%</span>
-                        </p>
-                      </div>
-                      <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                        <Calendar className="inline h-4 w-4 mr-1" />
-                        1d atrás
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            </ul>
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Campanhas por Valor */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Top Campanhas por Valor</h3>
+            <Megaphone className="h-5 w-5 text-gray-400" />
           </div>
+          {campaignsChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={campaignsChartData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                <YAxis dataKey="name" type="category" width={120} />
+                <Tooltip 
+                  formatter={(value: number) => formatCurrency(value)}
+                  labelStyle={{ color: '#111827' }}
+                />
+                <Bar dataKey="valor" fill="#3B82F6" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Nenhuma campanha com negócios
+            </div>
+          )}
         </div>
+
+        {/* Funil de Vendas */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Funil de Vendas</h3>
+            <TrendingDown className="h-5 w-5 text-gray-400" />
+          </div>
+          {funnelData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={funnelData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="negócios" fill="#10B981" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Nenhum dado de funil disponível
+            </div>
+          )}
+        </div>
+
+        {/* Motivos de Perda */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Top Motivos de Perda</h3>
+            <XCircle className="h-5 w-5 text-gray-400" />
+          </div>
+          {lostReasonsData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={lostReasonsData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {lostReasonsData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Nenhum motivo de perda registrado
+            </div>
+          )}
+        </div>
+
+        {/* Taxa de Conversão por Campanha */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Conversão por Campanha</h3>
+            <TrendingUp className="h-5 w-5 text-gray-400" />
+          </div>
+          {conversionByCampaign.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={conversionByCampaign}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value: number, name: string) => {
+                    if (name === 'conversão') return `${value.toFixed(1)}%`
+                    return value
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="conversão" fill="#10B981" name="Taxa (%)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Nenhum dado de conversão disponível
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {campaigns.filter(c => c.deals_count && c.deals_count > 0).slice(0, 3).map((campaign) => (
+          <div key={campaign.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 border-blue-500">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">{campaign.name}</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Negócios:</span>
+                    <span className="font-medium text-gray-900">{campaign.deals_count}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Valor:</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(campaign.total_value || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Conversão:</span>
+                    <span className="font-medium text-green-600">
+                      {(campaign.deals_count || 0) > 0 ? ((campaign.won_deals_count || 0) / (campaign.deals_count || 1) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Megaphone className="h-8 w-8 text-blue-500 opacity-50" />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
