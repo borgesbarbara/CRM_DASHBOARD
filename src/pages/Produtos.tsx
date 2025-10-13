@@ -1,94 +1,80 @@
-import { useState } from 'react'
-import { Plus, Search, Edit, Trash2, Package } from 'lucide-react'
-
-const mockProdutos = [
-  {
-    id: 1,
-    nome: 'Software Premium',
-    categoria: 'Software',
-    preco: 'R$ 2.500',
-    estoque: 15,
-    status: 'Ativo',
-    vendas: 23
-  },
-  {
-    id: 2,
-    nome: 'Consultoria Técnica',
-    categoria: 'Serviço',
-    preco: 'R$ 1.800',
-    estoque: '∞',
-    status: 'Ativo',
-    vendas: 12
-  },
-  {
-    id: 3,
-    nome: 'Suporte Técnico',
-    categoria: 'Serviço',
-    preco: 'R$ 850',
-    estoque: '∞',
-    status: 'Ativo',
-    vendas: 45
-  },
-  {
-    id: 4,
-    nome: 'Hardware Básico',
-    categoria: 'Hardware',
-    preco: 'R$ 1.200',
-    estoque: 3,
-    status: 'Baixo Estoque',
-    vendas: 8
-  },
-]
+import { Megaphone, Calendar, RefreshCw, Users, TrendingUp, DollarSign, Target, Award, XCircle } from 'lucide-react'
+import { useCampaigns } from '../hooks/useCampaigns'
 
 export default function Produtos() {
-  const [produtos] = useState(mockProdutos)
-  const [searchTerm, setSearchTerm] = useState('')
+  const { campaigns, loading, error } = useCampaigns()
 
-  const filteredProdutos = produtos.filter(produto =>
-    produto.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    produto.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Ativo':
-        return 'bg-green-100 text-green-800'
-      case 'Baixo Estoque':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'Inativo':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
+  const formatCurrency = (value?: number) => {
+    if (!value) return 'R$ 0,00'
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value)
+  }
+
+  const calculateConversionRate = (won?: number, total?: number) => {
+    if (!total || total === 0) return '0%'
+    const rate = ((won || 0) / total) * 100
+    return `${rate.toFixed(1)}%`
+  }
+
+  // Calcular totais
+  const totalContacts = campaigns.reduce((sum, c) => sum + (c.contacts_count || 0), 0)
+  const totalDeals = campaigns.reduce((sum, c) => sum + (c.deals_count || 0), 0)
+  const totalValue = campaigns.reduce((sum, c) => sum + (c.total_value || 0), 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center space-y-4">
+          <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+          <p className="text-gray-600">Carregando campanhas...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">{error}</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Produtos</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Campanhas</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Gerencie seu catálogo de produtos e serviços
+            Desempenho das campanhas de marketing do RD Station
           </p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Novo Produto</span>
-        </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Visão Geral */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Package className="h-6 w-6 text-gray-400" />
+                <Megaphone className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Produtos</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">{produtos.length}</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Campanhas</dt>
+                  <dd className="text-2xl font-semibold text-gray-900">{campaigns.length}</dd>
                 </dl>
               </div>
             </div>
@@ -98,8 +84,13 @@ export default function Produtos() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="text-2xl font-semibold text-gray-900">3</div>
-                <div className="text-sm text-gray-500">Categorias</div>
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Contatos</dt>
+                  <dd className="text-2xl font-semibold text-gray-900">{totalContacts}</dd>
+                </dl>
               </div>
             </div>
           </div>
@@ -108,8 +99,13 @@ export default function Produtos() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="text-2xl font-semibold text-gray-900">1</div>
-                <div className="text-sm text-gray-500">Baixo Estoque</div>
+                <Target className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total de Negócios</dt>
+                  <dd className="text-2xl font-semibold text-gray-900">{totalDeals}</dd>
+                </dl>
               </div>
             </div>
           </div>
@@ -118,99 +114,164 @@ export default function Produtos() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="text-2xl font-semibold text-gray-900">88</div>
-                <div className="text-sm text-gray-500">Total de Vendas</div>
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Valor Total</dt>
+                  <dd className="text-2xl font-semibold text-gray-900">{formatCurrency(totalValue)}</dd>
+                </dl>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex space-x-4">
-          <div className="flex-1">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar produtos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-            </div>
-          </div>
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Todas as categorias</option>
-            <option>Software</option>
-            <option>Hardware</option>
-            <option>Serviço</option>
-          </select>
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Todos os status</option>
-            <option>Ativo</option>
-            <option>Baixo Estoque</option>
-            <option>Inativo</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Products Table */}
+      {/* Campaigns List with Performance */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:px-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Catálogo de Produtos ({filteredProdutos.length})
+            Desempenho por Campanha ({campaigns.length})
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Todos os produtos e serviços disponíveis
+            Métricas detalhadas de cada campanha
           </p>
         </div>
-        <ul className="divide-y divide-gray-200">
-          {filteredProdutos.map((produto) => (
-            <li key={produto.id}>
-              <div className="px-4 py-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10">
-                    <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                      <Package className="h-5 w-5 text-white" />
+        
+        {campaigns.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <Megaphone className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma campanha encontrada</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Não há campanhas cadastradas no momento
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {campaigns.map((campaign) => (
+              <div key={campaign.id} className="px-4 py-6 hover:bg-gray-50 transition-colors">
+                {/* Header da Campanha */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-12 w-12">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                        <Megaphone className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <div className="flex items-center">
+                        <h4 className="text-lg font-semibold text-gray-900">{campaign.name}</h4>
+                        <span className="ml-3 inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          Ativa
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        Criada em: {formatDate(campaign.created_at)}
+                        {campaign.updated_at && (
+                          <span className="ml-4">
+                            • Atualizada em: {formatDate(campaign.updated_at)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="ml-4">
-                    <div className="flex items-center">
-                      <p className="text-sm font-medium text-gray-900">{produto.nome}</p>
-                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(produto.status)}`}>
-                        {produto.status}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {produto.categoria} • Estoque: {produto.estoque}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {produto.vendas} vendas realizadas
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900">{produto.preco}</p>
-                    <p className="text-sm text-gray-500">ID: #{produto.id}</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="text-gray-600 hover:text-gray-900">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <p className="text-xs text-gray-500">ID</p>
+                    <p className="text-sm font-medium text-gray-900">#{campaign.id}</p>
                   </div>
                 </div>
+
+                {/* Métricas de Desempenho */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
+                  {/* Contatos */}
+                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <div className="flex items-center justify-between">
+                      <Users className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-purple-900 mt-2">
+                      {campaign.contacts_count || 0}
+                    </p>
+                    <p className="text-xs text-purple-600 font-medium">Contatos</p>
+                  </div>
+
+                  {/* Total de Negócios */}
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <div className="flex items-center justify-between">
+                      <Target className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-blue-900 mt-2">
+                      {campaign.deals_count || 0}
+                    </p>
+                    <p className="text-xs text-blue-600 font-medium">Negócios</p>
+                  </div>
+
+                  {/* Negócios Ganhos */}
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                    <div className="flex items-center justify-between">
+                      <Award className="h-5 w-5 text-green-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-green-900 mt-2">
+                      {campaign.won_deals_count || 0}
+                    </p>
+                    <p className="text-xs text-green-600 font-medium">Ganhos</p>
+                  </div>
+
+                  {/* Negócios Perdidos */}
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                    <div className="flex items-center justify-between">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-900 mt-2">
+                      {campaign.lost_deals_count || 0}
+                    </p>
+                    <p className="text-xs text-red-600 font-medium">Perdidos</p>
+                  </div>
+
+                  {/* Taxa de Conversão */}
+                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
+                    <div className="flex items-center justify-between">
+                      <TrendingUp className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-orange-900 mt-2">
+                      {calculateConversionRate(campaign.won_deals_count, campaign.deals_count)}
+                    </p>
+                    <p className="text-xs text-orange-600 font-medium">Conversão</p>
+                  </div>
+
+                  {/* Valor Total */}
+                  <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                    <div className="flex items-center justify-between">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <p className="text-lg font-bold text-emerald-900 mt-2">
+                      {formatCurrency(campaign.total_value)}
+                    </p>
+                    <p className="text-xs text-emerald-600 font-medium">Valor Total</p>
+                  </div>
+                </div>
+
+                {/* Barra de Progresso de Conversão */}
+                {campaign.deals_count && campaign.deals_count > 0 && (
+                  <div className="mt-4">
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Progresso de Conversão</span>
+                      <span>{calculateConversionRate(campaign.won_deals_count, campaign.deals_count)}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${Math.min(((campaign.won_deals_count || 0) / campaign.deals_count) * 100, 100)}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

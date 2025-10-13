@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save, User, Bell, Shield, Palette, Database } from 'lucide-react'
+import { Save, User, Bell, Shield } from 'lucide-react'
 
 export default function Configuracoes() {
   const [settings, setSettings] = useState({

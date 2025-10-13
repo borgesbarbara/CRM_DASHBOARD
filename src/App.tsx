@@ -4,8 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Clientes from './pages/Clientes'
 import Vendas from './pages/Vendas'
 import Produtos from './pages/Produtos'
-import Relatorios from './pages/Relatorios'
-import Configuracoes from './pages/Configuracoes'
+import MotivosPerda from './pages/MotivosPerda'
 
 function App() {
   return (
@@ -16,8 +15,7 @@ function App() {
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/vendas" element={<Vendas />} />
           <Route path="/produtos" element={<Produtos />} />
-          <Route path="/relatorios" element={<Relatorios />} />
-          <Route path="/configuracoes" element={<Configuracoes />} />
+          <Route path="/relatorios" element={<MotivosPerda />} />
         </Routes>
       </Layout>
     </Router>

@@ -3,19 +3,17 @@ import {
   LayoutDashboard, 
   Users, 
   ShoppingCart, 
-  Package, 
+  Megaphone, 
   BarChart3, 
-  Settings,
-  Building2
 } from 'lucide-react'
+import logo from '../assets/logos/logo_azul.png'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Vendas', href: '/vendas', icon: ShoppingCart },
-  { name: 'Produtos', href: '/produtos', icon: Package },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
-  { name: 'Configurações', href: '/configuracoes', icon: Settings },
+  { name: 'Campanhas', href: '/produtos', icon: Megaphone },
+  { name: 'Motivos de Perda', href: '/relatorios', icon: BarChart3 },
 ]
 
 export default function Sidebar() {
@@ -23,8 +21,12 @@ export default function Sidebar() {
     <div className="hidden md:flex md:w-64 md:flex-col">
       <div className="flex flex-col flex-grow pt-5 bg-white overflow-y-auto border-r border-gray-200">
         <div className="flex items-center flex-shrink-0 px-4">
-          <Building2 className="h-8 w-8 text-blue-600" />
-          <span className="ml-2 text-xl font-bold text-gray-900">CRM Dashboard</span>
+          <img 
+            src={logo} 
+            alt="IM Incorporadora" 
+            className="h-10 w-10 object-contain"
+          />
+          <span className="ml-2 text-xl font-bold text-gray-900">IM Incorporadora</span>
         </div>
         <div className="mt-5 flex-grow flex flex-col">
           <nav className="flex-1 px-2 space-y-1">

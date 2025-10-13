@@ -10,4 +10,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      '/api/rdstation': {
+        target: 'https://crm.rdstation.com/api/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/rdstation/, ''),
+        secure: false,
+      }
+    }
+  }
 })
