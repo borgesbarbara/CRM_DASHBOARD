@@ -251,23 +251,6 @@ export default function Produtos() {
                   </div>
                 </div>
 
-                {/* Barra de Progresso de Conversão */}
-                {campaign.deals_count && campaign.deals_count > 0 && (
-                  <div className="mt-4">
-                    <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span>Progresso de Conversão</span>
-                      <span>{calculateConversionRate(campaign.won_deals_count, campaign.deals_count)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${Math.min(((campaign.won_deals_count || 0) / campaign.deals_count) * 100, 100)}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>

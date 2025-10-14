@@ -1,4 +1,4 @@
-import { Download, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react'
+import { TrendingDown, AlertCircle, CheckCircle } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useDealLostReasons } from '../hooks/useDealLostReasons'
 
@@ -77,10 +77,6 @@ export default function MotivosPerda() {
             Análise detalhada dos motivos de perda de negócios
           </p>
         </div>
-        <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center space-x-2">
-          <Download className="h-4 w-4" />
-          <span>Exportar PDF</span>
-        </button>
       </div>
 
       {/* Cards de Métricas */}
@@ -186,57 +182,6 @@ export default function MotivosPerda() {
         </div>
       </div>
 
-      {/* Lista Detalhada */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Detalhamento por Motivo
-          </h3>
-          <div className="flow-root">
-            <ul className="-mb-8">
-              {sortedData.map((item, index) => (
-                <li key={item.name}>
-                  <div className="relative pb-8">
-                    {index !== sortedData.length - 1 && (
-                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
-                    )}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        <span 
-                          className="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white text-white font-bold text-sm"
-                          style={{ backgroundColor: item.color }}
-                        >
-                          {index + 1}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                          <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
-                            <div 
-                              className="h-2.5 rounded-full" 
-                              style={{ 
-                                width: `${(item.value / total) * 100}%`,
-                                backgroundColor: item.color
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div className="text-right whitespace-nowrap">
-                          <p className="text-lg font-semibold text-gray-900">{item.value}</p>
-                          <p className="text-sm text-gray-500">
-                            {((item.value / total) * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
 
       {/* Insights */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">

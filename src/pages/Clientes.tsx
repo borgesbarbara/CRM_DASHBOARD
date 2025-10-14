@@ -1,151 +1,315 @@
-import { useState } from 'react'
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react'
+import { 
+  Users, 
+  TrendingUp, 
+  DollarSign, 
+  Award,
+  Target,
+  RefreshCw,
+  Trophy,
+  TrendingDown
+} from 'lucide-react'
+import { 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from 'recharts'
+import { useUsersPerformance } from '../hooks/useUsersPerformance'
 
-const mockClientes = [
-  {
-    id: 1,
-    nome: 'João Silva',
-    email: 'joao@email.com',
-    telefone: '(11) 99999-9999',
-    empresa: 'Tech Corp',
-    status: 'Ativo',
-    ultimaVenda: '2024-01-15',
-    totalVendas: 'R$ 15.250'
-  },
-  {
-    id: 2,
-    nome: 'Maria Santos',
-    email: 'maria@email.com',
-    telefone: '(11) 88888-8888',
-    empresa: 'Design Studio',
-    status: 'Ativo',
-    ultimaVenda: '2024-01-10',
-    totalVendas: 'R$ 8.750'
-  },
-  {
-    id: 3,
-    nome: 'Pedro Oliveira',
-    email: 'pedro@email.com',
-    telefone: '(11) 77777-7777',
-    empresa: 'Marketing Plus',
-    status: 'Inativo',
-    ultimaVenda: '2023-12-20',
-    totalVendas: 'R$ 3.200'
-  },
-]
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export default function Clientes() {
-  const [clientes] = useState(mockClientes)
-  const [searchTerm, setSearchTerm] = useState('')
+  const { users, loading, error } = useUsersPerformance()
 
-  const filteredClientes = clientes.filter(cliente =>
-    cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.empresa.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+
+  // Filtrar apenas os 3 usuários solicitados
+  const normalize = (s?: string) => (s || '')
+    .normalize('NFD')
+    // @ts-ignore – usar unicode property para remover acentos quando suportado
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase()
+
+  const allowedNames = ['richard', 'maria eduarda', 'renata cavalheiro']
+  const teamUsers = users.filter(u => {
+    const name = normalize(u.name)
+    const nick = normalize(u.nickname)
+    return allowedNames.some(n => name.includes(n) || nick.includes(n))
+  })
+
+  // Métricas gerais
+  const totalUsers = teamUsers.length
+  const totalDeals = teamUsers.reduce((sum, u) => sum + u.deals_count, 0)
+  const totalValue = teamUsers.reduce((sum, u) => sum + u.total_value, 0)
+  const totalWon = teamUsers.reduce((sum, u) => sum + u.won_deals_count, 0)
+  const avgConversion = totalDeals > 0 ? (totalWon / totalDeals * 100) : 0
+
+  // Top performers
+  // const topByDeals = [...teamUsers].sort((a, b) => b.deals_count - a.deals_count).slice(0, 5)
+
+  // Dados para gráficos (removidos os gráficos de barras)
+
+  
+
+  // Distribuição de negócios por status
+  const statusDistribution = [
+    { name: 'Ganhos', value: teamUsers.reduce((sum, u) => sum + u.won_deals_count, 0) },
+    { name: 'Perdidos', value: teamUsers.reduce((sum, u) => sum + u.lost_deals_count, 0) },
+    { name: 'Em Andamento', value: teamUsers.reduce((sum, u) => sum + u.in_progress_count, 0) }
+  ].filter(item => item.value > 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center space-y-4">
+          <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
+          <p className="text-gray-600">Carregando performance dos usuários...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gerencie sua base de clientes
-          </p>
-        </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Novo Cliente</span>
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Performance da Equipe</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Exibindo apenas: Richard, Maria Eduarda e Renata Cavalheiro
+        </p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex space-x-4">
-          <div className="flex-1">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+      {/* Layout Otimizado: Gráfico à esquerda, Cards à direita */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de Pizza - Lado Esquerdo */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Distribuição de Negócios</h3>
+            <Award className="h-5 w-5 text-gray-400" />
+          </div>
+          {statusDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {statusDistribution.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Nenhum dado disponível
+            </div>
+          )}
+        </div>
+
+        {/* Cards de Métricas - Lado Direito (2x2) */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+            <div className="p-4 h-full flex flex-col items-center justify-center text-center">
+              <div className="flex-shrink-0 bg-blue-100 p-3 rounded-lg mb-3">
+                <Users className="h-6 w-6 text-blue-600" />
               </div>
-              <input
-                type="text"
-                placeholder="Buscar clientes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+              <dl>
+                <dt className="text-base font-medium text-gray-500 mb-1">Total de Usuários</dt>
+                <dd className="text-2xl font-bold text-gray-900">{totalUsers}</dd>
+              </dl>
             </div>
           </div>
-          <select className="border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option>Todos os status</option>
-            <option>Ativo</option>
-            <option>Inativo</option>
-          </select>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+            <div className="p-4 h-full flex flex-col items-center justify-center text-center">
+              <div className="flex-shrink-0 bg-green-100 p-3 rounded-lg mb-3">
+                <Target className="h-6 w-6 text-green-600" />
+              </div>
+              <dl>
+                <dt className="text-base font-medium text-gray-500 mb-1">Total de Negócios</dt>
+                <dd className="text-2xl font-bold text-gray-900">{totalDeals}</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+            <div className="p-4 h-full flex flex-col items-center justify-center text-center">
+              <div className="flex-shrink-0 bg-purple-100 p-3 rounded-lg mb-3">
+                <DollarSign className="h-6 w-6 text-purple-600" />
+              </div>
+              <dl>
+                <dt className="text-base font-medium text-gray-500 mb-1">Valor Total</dt>
+                <dd className="text-2xl font-bold text-gray-900">{formatCurrency(totalValue)}</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+            <div className="p-4 h-full flex flex-col items-center justify-center text-center">
+              <div className="flex-shrink-0 bg-orange-100 p-3 rounded-lg mb-3">
+                <TrendingUp className="h-6 w-6 text-orange-600" />
+              </div>
+              <dl>
+                <dt className="text-base font-medium text-gray-500 mb-1">Conversão Média</dt>
+                <dd className="text-2xl font-bold text-gray-900">{avgConversion.toFixed(1)}%</dd>
+              </dl>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Clients Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Lista de Clientes ({filteredClientes.length})
+      {/* Estágios por Usuário */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {teamUsers.map((u) => (
+          <div key={u.id} className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{u.nickname || u.name}</h3>
+              <Target className="h-5 w-5 text-gray-400" />
+            </div>
+            {(u.stages && u.stages.length > 0) ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={u.stages}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[280px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Ranking Detalhado */}
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4 flex items-center">
+            <Trophy className="h-5 w-5 mr-2 text-yellow-500" />
+            Ranking Completo de Performance
           </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Todos os clientes cadastrados no sistema
-          </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Usuário
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Negócios
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ganhos
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Perdidos
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conversão
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Valor Ganho
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ticket Médio
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {[...teamUsers]
+                  .sort((a, b) => b.won_value - a.won_value)
+                  .map((user, index) => (
+                    <tr key={user.id} className={index < 3 ? 'bg-yellow-50' : 'hover:bg-gray-50'}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {index === 0 && <span className="text-yellow-500">🥇</span>}
+                        {index === 1 && <span className="text-gray-400">🥈</span>}
+                        {index === 2 && <span className="text-orange-600">🥉</span>}
+                        {index > 2 && <span className="text-gray-500">{index + 1}</span>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                              {user.nickname || user.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                        {user.deals_count}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {user.won_deals_count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          {user.lost_deals_count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-900">
+                            {user.conversion_rate.toFixed(1)}%
+                          </span>
+                          {user.conversion_rate >= avgConversion ? (
+                            <TrendingUp className="ml-1 h-4 w-4 text-green-500" />
+                          ) : (
+                            <TrendingDown className="ml-1 h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                        {formatCurrency(user.won_value)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                        {formatCurrency(user.avg_ticket)}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <ul className="divide-y divide-gray-200">
-          {filteredClientes.map((cliente) => (
-            <li key={cliente.id}>
-              <div className="px-4 py-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10">
-                    <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                      <span className="text-sm font-medium text-white">
-                        {cliente.nome.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <div className="flex items-center">
-                      <p className="text-sm font-medium text-gray-900">{cliente.nome}</p>
-                      <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        cliente.status === 'Ativo' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {cliente.status}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {cliente.email} • {cliente.telefone}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {cliente.empresa}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{cliente.totalVendas}</p>
-                    <p className="text-sm text-gray-500">Última venda: {cliente.ultimaVenda}</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-900">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="text-gray-600 hover:text-gray-900">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   )

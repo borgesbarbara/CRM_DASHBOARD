@@ -165,63 +165,31 @@ export default function Vendas() {
         </div>
       </div>
 
-      {/* Funil Visual */}
+      {/* Funil de Vendas - Gráfico de Barras Verticais */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium text-gray-900 mb-6">Funil de Vendas</h3>
-        <div className="space-y-4">
-          {chartData.map((stage, index) => {
-            const percentage = totalDeals > 0 ? (stage.deals / totalDeals) * 100 : 0;
-            const width = 100 - (index * 15); // Diminui 15% a cada etapa para efeito visual de funil
-            
-            return (
-              <div key={stage.name} className="relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm font-medium text-gray-700">{stage.name}</span>
-                    {index > 0 && (
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        stage.conversion >= 50 ? 'bg-green-100 text-green-800' : 
-                        stage.conversion >= 30 ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {stage.conversion.toFixed(1)}% de conversão
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900">{stage.deals}</p>
-                    <p className="text-xs text-gray-500">{formatCurrency(stage.value)}</p>
-                  </div>
-                </div>
-                <div className="relative h-12 bg-gray-100 rounded-lg overflow-hidden" style={{ width: `${width}%`, margin: '0 auto' }}>
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center text-white font-semibold transition-all duration-500"
-                    style={{ 
-                      backgroundColor: stage.color,
-                      width: '100%'
-                    }}
-                  >
-                    {percentage.toFixed(1)}% do total
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Gráfico de Barras */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Oportunidades por Etapa</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} style={{ fontSize: '12px' }} />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                height={100} 
+                style={{ fontSize: '12px' }} 
+              />
               <YAxis />
               <Tooltip 
-                formatter={(value: number) => [value, 'Oportunidades']}
-                contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px' }}
+                formatter={(value: number, name: string) => [
+                  name === 'deals' ? `${value} negócios` : formatCurrency(value),
+                  name === 'deals' ? 'Negócios' : 'Valor'
+                ]}
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #ccc', 
+                  borderRadius: '8px' 
+                }}
               />
               <Bar dataKey="deals" radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, index) => (
@@ -231,27 +199,8 @@ export default function Vendas() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Valor por Etapa</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} style={{ fontSize: '12px' }} />
-              <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
-              <Tooltip 
-                formatter={(value: number) => [formatCurrency(value), 'Valor Total']}
-                contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px' }}
-              />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </div>
+
 
       {/* Análise de Conversão Detalhada */}
       <div className="bg-white shadow rounded-lg">

@@ -37,6 +37,28 @@ export interface Campaign {
   won_value?: number;
 }
 
+export interface User {
+  id: string;
+  _id?: string;
+  name: string;
+  nickname?: string;
+  email: string;
+  role?: string;
+  avatar_url?: string;
+}
+
+export interface UserPerformance extends User {
+  deals_count: number;
+  won_deals_count: number;
+  lost_deals_count: number;
+  in_progress_count: number;
+  total_value: number;
+  won_value: number;
+  conversion_rate: number;
+  avg_ticket: number;
+  stages?: Array<{ id: string; name: string; count: number }>; // breakdown por estágio
+}
+
 interface Deal {
   id: string;
   name?: string;
@@ -51,6 +73,12 @@ interface Deal {
   status?: string;
   win?: boolean | null;
   closed_at?: string | null;
+  user?: {
+    id: string;
+    _id?: string;
+    name: string;
+    email?: string;
+  };
   campaign?: {
     id: string;
     _id: string;
@@ -183,11 +211,21 @@ async function fetchDealStagesMap(): Promise<Map<string, { name: string; isWon: 
     const stagesMap = new Map();
     stages.forEach((stage: any) => {
       const name = (stage.name || '').toLowerCase();
+      const isWon = name.includes('ganho') || name.includes('won') || name.includes('fechado') || name.includes('closed') || 
+                   name.includes('concluído') || name.includes('finalizado') || name.includes('aprovado') ||
+                   name.includes('vendido') || name.includes('aceito') || name.includes('fechamento') ||
+                   name.includes('atendimento realizado') || name.includes('contrato') || name.includes('assinado');
+      const isLost = name.includes('perdido') || name.includes('lost') || name.includes('rejeitado') || 
+                    name.includes('cancelado') || name.includes('desistiu') || name.includes('não aprovado') ||
+                    name.includes('perdida') || name.includes('desistência') || name.includes('recusado');
+      
       stagesMap.set(stage.id, {
         name: stage.name,
-        isWon: name.includes('ganho') || name.includes('won') || name.includes('fechado') || name.includes('closed'),
-        isLost: name.includes('perdido') || name.includes('lost')
+        isWon,
+        isLost
       });
+      
+      console.log(`🎯 Stage "${stage.name}":`, { isWon, isLost });
     });
     
     return stagesMap;
@@ -366,30 +404,87 @@ export const rdStationService = {
         let totalValue = 0;
         let wonValue = 0;
         
-        campaignDeals.forEach(deal => {
+        console.log(`🔍 Processando negócios da campanha "${campaign.name}":`, {
+          totalDeals: campaignDeals.length,
+          stagesMap: Array.from(stagesMap.entries()),
+          sampleDeal: campaignDeals[0]
+        });
+        
+        campaignDeals.forEach((deal, index) => {
           const amount = Number(deal.amount_total || deal.amount) || 0;
           totalValue += amount;
           
           // Verificar status pelo stage (usar deal_stage.id se disponível)
           const stageId = deal.deal_stage?.id || deal.deal_stage_id;
+          const stageName = deal.deal_stage?.name || deal.stage_name;
+          
+          // Flags para evitar contagem duplicada
+          let isDealWon = false;
+          let isDealLost = false;
+          
+          if (index < 3) { // Log apenas os primeiros 3 para debug
+            console.log(`🔍 Deal ${index + 1}:`, {
+              id: deal.id,
+              stageId,
+              stageName,
+              amount,
+              win: deal.win,
+              closed_at: deal.closed_at,
+              hasStageInMap: stageId ? stagesMap.has(stageId) : false
+            });
+          }
+          
+          // Verificar por estágio
           if (stageId && stagesMap.has(stageId)) {
             const stageInfo = stagesMap.get(stageId);
             if (stageInfo?.isWon) {
-              wonDeals++;
-              wonValue += amount;
+              isDealWon = true;
+              console.log(`✅ Deal ${deal.id} marcado como GANHO por stage: ${stageName}`);
             } else if (stageInfo?.isLost) {
-              lostDeals++;
+              isDealLost = true;
+              console.log(`❌ Deal ${deal.id} marcado como PERDIDO por stage: ${stageName}`);
             }
           }
 
-          // Fallback adicional: marcar como ganho/perdido por flags diretas
+          // Verificar por flags diretas
           if (deal.win === true) {
+            isDealWon = true;
+            console.log(`✅ Deal ${deal.id} marcado como GANHO por flag win=true`);
+          }
+          if (deal.win === false || (deal.closed_at && amount === 0)) {
+            isDealLost = true;
+            console.log(`❌ Deal ${deal.id} marcado como PERDIDO por flag win=false ou closed_at`);
+          }
+          
+          // Lógica adicional: se o negócio tem valor e está fechado, pode ser ganho
+          if (deal.closed_at && amount > 0 && !isDealLost && !isDealWon) {
+            isDealWon = true;
+            console.log(`✅ Deal ${deal.id} marcado como GANHO por estar fechado com valor: ${amount}`);
+          }
+          
+          // Lógica especial: se o negócio tem valor significativo e não foi classificado, considerar como ganho
+          if (amount > 0 && !deal.closed_at && !isDealLost && !isDealWon) {
+            if (stageName && (stageName.toLowerCase().includes('atendimento') || stageName.toLowerCase().includes('fechamento'))) {
+              isDealWon = true;
+              console.log(`✅ Deal ${deal.id} marcado como GANHO por ter valor e estágio de fechamento: ${stageName}`);
+            }
+          }
+          
+          // Contar apenas uma vez por negócio
+          if (isDealWon) {
             wonDeals++;
             wonValue += amount;
           }
-          if (deal.win === false || (deal.closed_at && amount === 0)) {
+          if (isDealLost) {
             lostDeals++;
           }
+        });
+        
+        console.log(`📊 Resultado final da campanha "${campaign.name}":`, {
+          wonDeals,
+          lostDeals,
+          totalValue,
+          wonValue
         });
         
         return {
@@ -408,6 +503,110 @@ export const rdStationService = {
       
     } catch (error) {
       console.error('❌ Erro ao buscar campanhas:', error);
+      return [];
+    }
+  },
+
+  // Buscar usuários com métricas de performance
+  async getUsersPerformance(): Promise<UserPerformance[]> {
+    try {
+      console.log('🔍 Buscando usuários e performance...');
+      
+      // Buscar usuários
+      const usersData = await fetchJSON('/users');
+      let users: User[] = [];
+      if (Array.isArray(usersData)) {
+        users = usersData;
+      } else if (usersData.users && Array.isArray(usersData.users)) {
+        users = usersData.users;
+      }
+      
+      if (!users || users.length === 0) {
+        console.warn('⚠️ Nenhum usuário encontrado');
+        return [];
+      }
+      
+      console.log(`✅ ${users.length} usuários encontrados`);
+      
+      // Buscar todos os negócios e stages
+      const [allDeals, stagesMap] = await Promise.all([
+        fetchAllDeals(),
+        fetchDealStagesMap()
+      ]);
+      
+      // Calcular performance de cada usuário
+      const usersPerformance: UserPerformance[] = users.map(user => {
+        // Filtrar negócios deste usuário
+        const userDeals = allDeals.filter(deal => {
+          if (!deal.user) return false;
+          return deal.user.id === user.id || 
+                 deal.user._id === user.id ||
+                 String(deal.user.id) === String(user.id) ||
+                 String(deal.user._id) === String(user.id);
+        });
+        
+        // Calcular métricas
+        let wonDeals = 0;
+        let lostDeals = 0;
+        let totalValue = 0;
+        let wonValue = 0;
+        const stageCountMap = new Map<string, { id: string; name: string; count: number }>();
+        
+        userDeals.forEach(deal => {
+          const amount = Number(deal.amount_total || deal.amount) || 0;
+          totalValue += amount;
+          
+          // Verificar status pelo stage
+          const stageId = deal.deal_stage?.id || deal.deal_stage_id;
+          if (stageId && stagesMap.has(stageId)) {
+            const stageInfo = stagesMap.get(stageId);
+            if (stageInfo?.isWon) {
+              wonDeals++;
+              wonValue += amount;
+            } else if (stageInfo?.isLost) {
+              lostDeals++;
+            }
+            // Contabilizar estágio
+            const entry = stageCountMap.get(stageId) || { id: stageId, name: stageInfo?.name || 'Etapa', count: 0 };
+            entry.count += 1;
+            stageCountMap.set(stageId, entry);
+          }
+          
+          // Fallback por flags diretas
+          if (deal.win === true) {
+            wonDeals++;
+            wonValue += amount;
+          }
+          if (deal.win === false || (deal.closed_at && amount === 0)) {
+            lostDeals++;
+          }
+        });
+        
+        const dealsCount = userDeals.length;
+        const inProgressCount = dealsCount - wonDeals - lostDeals;
+        const conversionRate = dealsCount > 0 ? (wonDeals / dealsCount) * 100 : 0;
+        const avgTicket = wonDeals > 0 ? wonValue / wonDeals : 0;
+        const stages = Array.from(stageCountMap.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+        
+        return {
+          ...user,
+          deals_count: dealsCount,
+          won_deals_count: wonDeals,
+          lost_deals_count: lostDeals,
+          in_progress_count: inProgressCount,
+          total_value: totalValue,
+          won_value: wonValue,
+          conversion_rate: conversionRate,
+          avg_ticket: avgTicket,
+          stages
+        };
+      });
+      
+      console.log('✅ Performance dos usuários calculada:', usersPerformance);
+      return usersPerformance;
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar performance dos usuários:', error);
       return [];
     }
   },

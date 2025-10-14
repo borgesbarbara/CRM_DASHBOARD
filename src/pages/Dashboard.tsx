@@ -6,7 +6,8 @@ import {
   Target,
   Award,
   XCircle,
-  TrendingDown
+  TrendingDown,
+  RefreshCw
 } from 'lucide-react'
 import { 
   XAxis, 
@@ -18,19 +19,50 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell,
-  Legend
+  Cell
 } from 'recharts'
 import { useCampaigns } from '../hooks/useCampaigns'
 import { useDealPipelines } from '../hooks/useDealPipelines'
 import { useDealLostReasons } from '../hooks/useDealLostReasons'
+import { useState, useEffect } from 'react'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 export default function Dashboard() {
+  const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  
   const { campaigns, loading: loadingCampaigns } = useCampaigns()
   const { pipelines, loading: loadingPipelines } = useDealPipelines()
   const { reasons, loading: loadingReasons } = useDealLostReasons()
+
+  // Função para atualizar manualmente
+  const handleManualRefresh = () => {
+    setIsRefreshing(true)
+    setLastUpdate(new Date())
+    
+    setTimeout(() => {
+      setIsRefreshing(false)
+      window.location.reload()
+    }, 1000)
+  }
+
+  // Auto-refresh a cada 15 minutos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsRefreshing(true)
+      setLastUpdate(new Date())
+      
+      // Simular recarregamento dos dados
+      setTimeout(() => {
+        setIsRefreshing(false)
+        // Forçar recarregamento da página para atualizar os dados
+        window.location.reload()
+      }, 1000)
+    }, 15 * 60 * 1000) // 15 minutos em millisegundos
+
+    return () => clearInterval(interval)
+  }, [])
 
   // Calcular métricas gerais
   const totalCampaigns = campaigns.length
@@ -41,6 +73,24 @@ export default function Dashboard() {
   const conversionRate = totalDeals > 0 ? ((totalWonDeals / totalDeals) * 100).toFixed(1) : '0.0'
   const wonValue = campaigns.reduce((sum, c) => sum + (c.won_value || 0), 0)
   const avgTicket = totalWonDeals > 0 ? (wonValue / totalWonDeals) : 0
+
+  // Debug das métricas
+  console.log('🔍 Dashboard - Métricas calculadas:', {
+    totalCampaigns,
+    totalDeals,
+    totalValue,
+    totalWonDeals,
+    totalLostDeals,
+    wonValue,
+    avgTicket,
+    campaigns: campaigns.map(c => ({
+      name: c.name,
+      deals_count: c.deals_count,
+      won_deals_count: c.won_deals_count,
+      won_value: c.won_value,
+      total_value: c.total_value
+    }))
+  })
 
   // Dados para gráfico de campanhas (top 6)
   const campaignsChartData = campaigns
@@ -78,17 +128,6 @@ export default function Dashboard() {
     dados: lostReasonsData 
   })
 
-  // Dados para gráfico de conversão por campanha (top 6)
-  const conversionByCampaign = campaigns
-    .filter(c => c.deals_count && c.deals_count > 0)
-    .map(c => ({
-      name: c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name,
-      conversão: (c.deals_count || 0) > 0 ? ((c.won_deals_count || 0) / (c.deals_count || 1) * 100) : 0,
-      ganhos: c.won_deals_count || 0,
-      perdidos: c.lost_deals_count || 0
-    }))
-    .sort((a, b) => b.conversão - a.conversão)
-    .slice(0, 6)
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -144,13 +183,43 @@ export default function Dashboard() {
     },
   ]
 
+  // Data de última atualização
+  const lastUpdated = lastUpdate.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Visão geral consolidada de Campanhas, Vendas e Motivos de Perda
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Visão geral consolidada de Campanhas, Vendas e Motivos de Perda
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="flex items-center space-x-1 px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Atualizando...' : 'Atualizar'}</span>
+              </button>
+              <div>
+                <p className="text-xs text-gray-400">Última atualização</p>
+                <p className="text-sm font-medium text-gray-600">{lastUpdated}</p>
+                <p className="text-xs text-blue-500">Auto-refresh: 15min</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -173,6 +242,9 @@ export default function Dashboard() {
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {item.subtitle}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Dados em tempo real
                       </div>
                     </dd>
                   </dl>
@@ -224,7 +296,10 @@ export default function Dashboard() {
         {/* Campanhas por Valor */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Top Campanhas por Valor</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Top Campanhas por Valor</h3>
+              <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
+            </div>
             <Megaphone className="h-5 w-5 text-gray-400" />
           </div>
           {campaignsChartData.length > 0 ? (
@@ -250,7 +325,10 @@ export default function Dashboard() {
         {/* Funil de Vendas */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Funil de Vendas</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Funil de Vendas</h3>
+              <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
+            </div>
             <TrendingDown className="h-5 w-5 text-gray-400" />
           </div>
           {funnelData.length > 0 ? (
@@ -270,10 +348,17 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Motivos de Perda */}
+      </div>
+
+      {/* Layout de 2 Colunas: Gráfico de Pizza | Cards de Campanhas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Motivos de Perda - Gráfico de Pizza */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Top Motivos de Perda</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Top Motivos de Perda</h3>
+              <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
+            </div>
             <XCircle className="h-5 w-5 text-gray-400" />
           </div>
           {lostReasonsData.length > 0 ? (
@@ -303,64 +388,35 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Taxa de Conversão por Campanha */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Conversão por Campanha</h3>
-            <TrendingUp className="h-5 w-5 text-gray-400" />
-          </div>
-          {conversionByCampaign.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={conversionByCampaign}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: number, name: string) => {
-                    if (name === 'conversão') return `${value.toFixed(1)}%`
-                    return value
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="conversão" fill="#10B981" name="Taxa (%)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              Nenhum dado de conversão disponível
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {campaigns.filter(c => c.deals_count && c.deals_count > 0).slice(0, 3).map((campaign) => (
-          <div key={campaign.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 border-blue-500">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">{campaign.name}</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Negócios:</span>
-                    <span className="font-medium text-gray-900">{campaign.deals_count}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Valor:</span>
-                    <span className="font-medium text-gray-900">{formatCurrency(campaign.total_value || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Conversão:</span>
-                    <span className="font-medium text-green-600">
-                      {(campaign.deals_count || 0) > 0 ? ((campaign.won_deals_count || 0) / (campaign.deals_count || 1) * 100).toFixed(1) : 0}%
-                    </span>
+        {/* Cards de Resumo das Campanhas */}
+        <div className="space-y-4">
+          {campaigns.filter(c => c.deals_count && c.deals_count > 0).slice(0, 3).map((campaign) => (
+            <div key={campaign.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 border-blue-500">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">{campaign.name}</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Negócios:</span>
+                      <span className="font-medium text-gray-900">{campaign.deals_count}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Valor:</span>
+                      <span className="font-medium text-gray-900">{formatCurrency(campaign.total_value || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Conversão:</span>
+                      <span className="font-medium text-green-600">
+                        {(campaign.deals_count || 0) > 0 ? ((campaign.won_deals_count || 0) / (campaign.deals_count || 1) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <Megaphone className="h-8 w-8 text-blue-500 opacity-50" />
               </div>
-              <Megaphone className="h-8 w-8 text-blue-500 opacity-50" />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
