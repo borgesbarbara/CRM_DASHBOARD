@@ -18,7 +18,8 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  LabelList
 } from 'recharts'
 import { useUsersPerformance } from '../hooks/useUsersPerformance'
 
@@ -203,9 +204,11 @@ export default function Clientes() {
                 <BarChart data={u.stages}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
-                  <YAxis allowDecimals={false} />
+                  <YAxis allowDecimals={false} domain={[0, 600]} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]} />
+                  <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]}>
+                    <LabelList dataKey="count" position="top" className="text-[10px] fill-gray-700" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (

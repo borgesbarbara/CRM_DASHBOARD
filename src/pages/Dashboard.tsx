@@ -17,6 +17,7 @@ import {
   ResponsiveContainer, 
   BarChart, 
   Bar,
+  LabelList,
   PieChart,
   Pie,
   Cell
@@ -323,9 +324,11 @@ const stats = [
                     <BarChart data={u.stages}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
-                      <YAxis allowDecimals={false} />
+                      <YAxis allowDecimals={false} domain={[0, 600]} />
                       <Tooltip />
-                      <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]} />
+                      <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]}>
+                        <LabelList dataKey="count" position="top" className="text-[10px] fill-gray-700" />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -367,46 +370,15 @@ const stats = [
             </div>
           )}
         </div>
-
-        {/* Funil de Vendas */}
+        {/* Top Motivos de Perda (reposicionado para a direita) */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Funil de Vendas</h3>
-              <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
-            </div>
-            <TrendingDown className="h-5 w-5 text-gray-400" />
-          </div>
-          {funnelData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={funnelData}>
-              <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-              <YAxis />
-              <Tooltip />
-                <Bar dataKey="negócios" fill="#10B981" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              Nenhum dado de funil disponível
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Layout de 2 Colunas: Gráfico de Pizza | Cards de Campanhas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Motivos de Perda - Gráfico de Pizza */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
-                    <div>
               <h3 className="text-lg font-semibold text-gray-900">Top Motivos de Perda</h3>
               <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
-                    </div>
+            </div>
             <XCircle className="h-5 w-5 text-gray-400" />
-                      </div>
+          </div>
           {lostReasonsData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -430,12 +402,13 @@ const stats = [
           ) : (
             <div className="h-[300px] flex items-center justify-center text-gray-500">
               Nenhum motivo de perda registrado
-                      </div>
+            </div>
           )}
-                    </div>
+        </div>
+      </div>
 
-        {/* Cards de Resumo das Campanhas */}
-        <div className="space-y-4">
+      {/* Cards de Resumo das Campanhas (ocupa largura total) */}
+      <div className="space-y-4">
           {campaigns.filter(c => c.deals_count && c.deals_count > 0).slice(0, 3).map((campaign) => (
             <div key={campaign.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 border-blue-500">
               <div className="flex items-start justify-between">
@@ -462,7 +435,6 @@ const stats = [
               </div>
           </div>
           ))}
-        </div>
       </div>
     </div>
   )
