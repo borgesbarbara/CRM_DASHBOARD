@@ -310,10 +310,17 @@ const stats = [
                   <h4 className="text-sm font-semibold text-gray-900">{u.nickname || u.name}</h4>
                 </div>
                 {(u.stages && u.stages.length > 0) ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={u.stages}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={u.stages} margin={{ top: 20, right: 10, left: 10, bottom: 100 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={100} 
+                        interval={0}
+                        tick={{ fontSize: 11 }}
+                      />
                       <YAxis allowDecimals={false} domain={[0, 600]} />
                       <Tooltip />
                       <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]}>
@@ -322,7 +329,7 @@ const stats = [
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[260px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
+                  <div className="h-[320px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
                 )}
               </div>
             ));

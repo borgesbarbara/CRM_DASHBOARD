@@ -200,10 +200,17 @@ export default function Clientes() {
               <Target className="h-5 w-5 text-gray-400" />
             </div>
             {(u.stages && u.stages.length > 0) ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={u.stages}>
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={u.stages} margin={{ top: 20, right: 10, left: 10, bottom: 100 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={100} 
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis allowDecimals={false} domain={[0, 600]} />
                   <Tooltip />
                   <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]}>
@@ -212,7 +219,7 @@ export default function Clientes() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
+              <div className="h-[340px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
             )}
           </div>
         ))}
