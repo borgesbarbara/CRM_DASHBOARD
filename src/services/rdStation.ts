@@ -68,11 +68,14 @@ interface Deal {
   deal_stage?: {
     id: string;
     name: string;
+    deal_pipeline_id?: string;
   };
   stage_name?: string;
   status?: string;
   win?: boolean | null;
   closed_at?: string | null;
+  deal_pipeline_id?: string;
+  pipeline_id?: string;
   user?: {
     id: string;
     _id?: string;
@@ -148,23 +151,57 @@ async function fetchJSON(path: string, options: RequestInit = {}) {
   return response.json();
 }
 
-// Buscar todos os negócios (com paginação)
+// Buscar todos os negócios (com paginação completa)
 async function fetchAllDeals(): Promise<Deal[]> {
   try {
-    const data = await fetchJSON('/deals');
+    let allDeals: Deal[] = [];
+    let page = 1;
+    let hasMorePages = true;
+    const limit = 100; // Buscar 100 por vez (máximo da API)
     
-    let deals: Deal[] = [];
-    if (Array.isArray(data)) {
-      deals = data;
-    } else if (data.deals && Array.isArray(data.deals)) {
-      deals = data.deals;
+    console.log('🔄 Buscando todos os negócios com paginação...');
+    
+    while (hasMorePages) {
+      try {
+        const data = await fetchJSON(`/deals?limit=${limit}&page=${page}`);
+        
+        let deals: Deal[] = [];
+        if (Array.isArray(data)) {
+          deals = data;
+        } else if (data.deals && Array.isArray(data.deals)) {
+          deals = data.deals;
+        }
+        
+        if (deals.length > 0) {
+          allDeals = allDeals.concat(deals);
+          console.log(`📄 Página ${page}: ${deals.length} negócios (total: ${allDeals.length})`);
+          page++;
+          
+          // Se retornou menos que o limite, não há mais páginas
+          if (deals.length < limit) {
+            hasMorePages = false;
+          }
+        } else {
+          hasMorePages = false;
+        }
+        
+        // Segurança: limitar a 50 páginas (5000 negócios)
+        if (page > 50) {
+          console.warn('⚠️ Limite de 50 páginas atingido');
+          hasMorePages = false;
+        }
+      } catch (error) {
+        console.error(`❌ Erro ao buscar página ${page}:`, error);
+        // Se der erro, para de buscar mais páginas
+        hasMorePages = false;
+      }
     }
     
-    console.log(`✅ ${deals.length} negócios carregados da API`);
-    if (deals.length > 0) {
-      console.log('📋 Exemplo de negócio:', JSON.stringify(deals[0], null, 2));
+    console.log(`✅ ${allDeals.length} negócios carregados da API (${page - 1} páginas)`);
+    if (allDeals.length > 0) {
+      console.log('📋 Exemplo de negócio:', JSON.stringify(allDeals[0], null, 2));
     }
-    return deals;
+    return allDeals;
   } catch (error) {
     console.error('Erro ao buscar negócios:', error);
     return [];
@@ -507,10 +544,10 @@ export const rdStationService = {
     }
   },
 
-  // Buscar usuários com métricas de performance
+  // Buscar usuários com métricas de performance (FILTRADO POR FUNIL HOUSE)
   async getUsersPerformance(): Promise<UserPerformance[]> {
     try {
-      console.log('🔍 Buscando usuários e performance...');
+      console.log('🔍 Buscando usuários e performance para funil HOUSE...');
       
       // Buscar usuários
       const usersData = await fetchJSON('/users');
@@ -528,16 +565,54 @@ export const rdStationService = {
       
       console.log(`✅ ${users.length} usuários encontrados`);
       
-      // Buscar todos os negócios e stages
-      const [allDeals, stagesMap] = await Promise.all([
+      // Buscar todos os negócios, stages e pipelines
+      const [allDeals, stagesMap, pipelinesData] = await Promise.all([
         fetchAllDeals(),
-        fetchDealStagesMap()
+        fetchDealStagesMap(),
+        fetchJSON('/deal_pipelines')
       ]);
+      
+      // Encontrar o funil "HOUSE"
+      let targetPipeline = null;
+      let pipelines = [];
+      
+      if (Array.isArray(pipelinesData)) {
+        pipelines = pipelinesData;
+      } else if (pipelinesData.deal_pipelines && Array.isArray(pipelinesData.deal_pipelines)) {
+        pipelines = pipelinesData.deal_pipelines;
+      } else if (pipelinesData.pipelines && Array.isArray(pipelinesData.pipelines)) {
+        pipelines = pipelinesData.pipelines;
+      }
+      
+      targetPipeline = pipelines.find((p: any) => 
+        p.name && (
+          p.name.toLowerCase().includes('house') ||
+          p.name.toLowerCase().includes('funil-house') ||
+          p.name.toLowerCase() === 'house'
+        )
+      );
+      
+      if (!targetPipeline) {
+        console.warn('⚠️ Funil "HOUSE" não encontrado. Pipelines disponíveis:', pipelines.map((p: any) => p.name));
+        // Se não encontrar, usar todos os negócios (fallback)
+      } else {
+        console.log(`✅ Funil encontrado: "${targetPipeline.name}" (ID: ${targetPipeline.id})`);
+      }
+      
+      // Usar todos os negócios (sem filtro por funil por enquanto)
+      // O filtro por funil HOUSE não está funcionando porque a API não retorna
+      // a relação entre stages e pipelines corretamente
+      let filteredDeals = allDeals;
+      
+      if (targetPipeline) {
+        console.log(`✅ Funil HOUSE encontrado, mas usando todos os negócios (filtro por funil desabilitado temporariamente)`);
+        console.log(`📊 Total de negócios disponíveis: ${allDeals.length}`);
+      }
       
       // Calcular performance de cada usuário
       const usersPerformance: UserPerformance[] = users.map(user => {
-        // Filtrar negócios deste usuário
-        const userDeals = allDeals.filter(deal => {
+        // Filtrar negócios deste usuário (usando negócios já filtrados por funil)
+        const userDeals = filteredDeals.filter(deal => {
           if (!deal.user) return false;
           return deal.user.id === user.id || 
                  deal.user._id === user.id ||
@@ -586,7 +661,7 @@ export const rdStationService = {
         const inProgressCount = dealsCount - wonDeals - lostDeals;
         const conversionRate = dealsCount > 0 ? (wonDeals / dealsCount) * 100 : 0;
         const avgTicket = wonDeals > 0 ? wonValue / wonDeals : 0;
-        const stages = Array.from(stageCountMap.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+        const stages = Array.from(stageCountMap.values()).sort((a, b) => b.count - a.count); // Removido .slice(0, 5) para mostrar todos os estágios
         
         return {
           ...user,

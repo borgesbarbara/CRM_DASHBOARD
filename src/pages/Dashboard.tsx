@@ -24,6 +24,7 @@ import {
 import { useCampaigns } from '../hooks/useCampaigns'
 import { useDealPipelines } from '../hooks/useDealPipelines'
 import { useDealLostReasons } from '../hooks/useDealLostReasons'
+import { useUsersPerformance } from '../hooks/useUsersPerformance'
 import { useState, useEffect } from 'react'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const { campaigns, loading: loadingCampaigns } = useCampaigns()
   const { pipelines, loading: loadingPipelines } = useDealPipelines()
   const { reasons, loading: loadingReasons } = useDealLostReasons()
+  const { users, loading: loadingUsers } = useUsersPerformance()
 
   // Função para atualizar manualmente
   const handleManualRefresh = () => {
@@ -67,7 +69,8 @@ export default function Dashboard() {
   // Calcular métricas gerais
   const totalCampaigns = campaigns.length
   const totalDeals = campaigns.reduce((sum, c) => sum + (c.deals_count || 0), 0)
-  const totalValue = campaigns.reduce((sum, c) => sum + (c.total_value || 0), 0)
+  // Valor total agora considera apenas valores ganhos
+  const totalValue = campaigns.reduce((sum, c) => sum + (c.won_value || 0), 0)
   const totalWonDeals = campaigns.reduce((sum, c) => sum + (c.won_deals_count || 0), 0)
   const totalLostDeals = campaigns.reduce((sum, c) => sum + (c.lost_deals_count || 0), 0)
   const conversionRate = totalDeals > 0 ? ((totalWonDeals / totalDeals) * 100).toFixed(1) : '0.0'
@@ -138,7 +141,7 @@ export default function Dashboard() {
     }).format(value)
   }
 
-  const loading = loadingCampaigns || loadingPipelines || loadingReasons
+  const loading = loadingCampaigns || loadingPipelines || loadingReasons || loadingUsers
 
   if (loading) {
     return (
@@ -148,12 +151,12 @@ export default function Dashboard() {
     )
   }
 
-  const stats = [
-    {
-      name: 'Valor Total',
+const stats = [
+  {
+      name: 'Valor Ganho',
       value: formatCurrency(totalValue),
       subtitle: `${totalDeals} negócios`,
-      icon: DollarSign,
+    icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
@@ -196,9 +199,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-500">
               Visão geral consolidada de Campanhas, Vendas e Motivos de Perda
             </p>
           </div>
@@ -262,7 +265,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-green-800">Negócios Ganhos</p>
               <p className="text-3xl font-bold text-green-900 mt-2">{totalWonDeals}</p>
-              <p className="text-sm text-green-700 mt-1">{formatCurrency(wonValue)}</p>
+              {/* Removido valor em reais conforme solicitação */}
             </div>
             <Award className="h-12 w-12 text-green-600 opacity-80" />
           </div>
@@ -291,6 +294,49 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Estágios por Usuário abaixo dos cards de performance */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Desenvolvimento por Usuário</h3>
+          <Target className="h-5 w-5 text-gray-400" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {(() => {
+            const normalize = (s: string) =>
+              (s || '')
+                .normalize('NFD')
+                .replace(/\p{Diacritic}/gu, '')
+                .toLowerCase();
+            const allowed = ['richard', 'maria eduarda', 'renata cavalheiro'];
+            const teamUsers = users.filter(u => {
+              const name = normalize(u.name);
+              const nick = normalize(u.nickname || '');
+              return allowed.some(a => name.includes(a) || nick.includes(a));
+            });
+            return teamUsers.map(u => (
+              <div key={u.id} className="bg-white p-4 rounded-lg border">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-900">{u.nickname || u.name}</h4>
+                </div>
+                {(u.stages && u.stages.length > 0) ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={u.stages}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" height={70} interval={0} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" name="Negócios" fill="#3B82F6" radius={[8,8,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[260px] flex items-center justify-center text-gray-500">Sem dados de estágios</div>
+                )}
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Campanhas por Valor */}
@@ -303,9 +349,9 @@ export default function Dashboard() {
             <Megaphone className="h-5 w-5 text-gray-400" />
           </div>
           {campaignsChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300}>
               <BarChart data={campaignsChartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
                 <YAxis dataKey="name" type="category" width={120} />
                 <Tooltip 
@@ -314,7 +360,7 @@ export default function Dashboard() {
                 />
                 <Bar dataKey="valor" fill="#3B82F6" radius={[0, 8, 8, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+          </ResponsiveContainer>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-gray-500">
               Nenhuma campanha com negócios
@@ -332,15 +378,15 @@ export default function Dashboard() {
             <TrendingDown className="h-5 w-5 text-gray-400" />
           </div>
           {funnelData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300}>
               <BarChart data={funnelData}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip />
+              <YAxis />
+              <Tooltip />
                 <Bar dataKey="negócios" fill="#10B981" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            </BarChart>
+          </ResponsiveContainer>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-gray-500">
               Nenhum dado de funil disponível
@@ -355,12 +401,12 @@ export default function Dashboard() {
         {/* Motivos de Perda - Gráfico de Pizza */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
-            <div>
+                    <div>
               <h3 className="text-lg font-semibold text-gray-900">Top Motivos de Perda</h3>
               <p className="text-xs text-gray-500">Atualizado em {lastUpdated}</p>
-            </div>
+                    </div>
             <XCircle className="h-5 w-5 text-gray-400" />
-          </div>
+                      </div>
           {lostReasonsData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -384,9 +430,9 @@ export default function Dashboard() {
           ) : (
             <div className="h-[300px] flex items-center justify-center text-gray-500">
               Nenhum motivo de perda registrado
-            </div>
+                      </div>
           )}
-        </div>
+                    </div>
 
         {/* Cards de Resumo das Campanhas */}
         <div className="space-y-4">
@@ -414,7 +460,7 @@ export default function Dashboard() {
                 </div>
                 <Megaphone className="h-8 w-8 text-blue-500 opacity-50" />
               </div>
-            </div>
+          </div>
           ))}
         </div>
       </div>

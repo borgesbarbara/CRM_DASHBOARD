@@ -98,6 +98,9 @@ export default function Clientes() {
         <p className="mt-1 text-sm text-gray-500">
           Exibindo apenas: Richard, Maria Eduarda e Renata Cavalheiro
         </p>
+        <p className="mt-1 text-xs text-gray-500">
+          📊 Exibindo todos os funis
+        </p>
       </div>
 
       {/* Layout Otimizado: Gráfico à esquerda, Cards à direita */}
