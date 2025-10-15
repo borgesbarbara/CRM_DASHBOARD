@@ -22,7 +22,6 @@ import {
   Cell
 } from 'recharts'
 import { useCampaigns } from '../hooks/useCampaigns'
-import { useDealPipelines } from '../hooks/useDealPipelines'
 import { useDealLostReasons } from '../hooks/useDealLostReasons'
 import { useUsersPerformance } from '../hooks/useUsersPerformance'
 import { useState, useEffect } from 'react'
@@ -34,7 +33,6 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   
   const { campaigns, loading: loadingCampaigns } = useCampaigns()
-  const { pipelines, loading: loadingPipelines } = useDealPipelines()
   const { reasons, loading: loadingReasons } = useDealLostReasons()
   const { users, loading: loadingUsers } = useUsersPerformance()
 
@@ -134,7 +132,7 @@ export default function Dashboard() {
     }).format(value)
   }
 
-  const loading = loadingCampaigns || loadingPipelines || loadingReasons || loadingUsers
+  const loading = loadingCampaigns || loadingReasons || loadingUsers
 
   if (loading) {
     return (
