@@ -6,7 +6,6 @@ import {
   Target,
   Award,
   XCircle,
-  TrendingDown,
   RefreshCw
 } from 'lucide-react'
 import { 
@@ -107,14 +106,7 @@ export default function Dashboard() {
       negócios: c.deals_count || 0
     }))
 
-  // Dados para gráfico de funil
-  const funnelData = pipelines.flatMap(p => 
-    (p.stages || []).map(s => ({
-      name: s.name,
-      negócios: s.deal_count || 0,
-      valor: s.total_value || 0
-    }))
-  )
+  // (Gráfico de funil removido; variáveis relacionadas excluídas)
 
   // Dados para gráfico de motivos de perda (top 5)
   // A API não retorna contagens, então vamos simular com base nos dados disponíveis
