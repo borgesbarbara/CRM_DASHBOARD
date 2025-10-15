@@ -1,10 +1,9 @@
 // RD Station API Service
 const RD_STATION_TOKEN = import.meta.env.VITE_RD_TOKEN || '';
-// Usar proxy APENAS em desenvolvimento local (Vite)
-// Em produção (Vercel), chamaremos a API pública diretamente
-const USE_PROXY = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.DEV === true;
+// Sempre vamos usar a rota interna /api/rdstation (em dev o proxy do Vite resolve;
+// em produção a Serverless Function fará o proxy e evitará CORS)
 const USE_MOCK_PIPELINES = false;
-const BASE_URL = USE_PROXY ? '/api/rdstation' : 'https://crm.rdstation.com/api/v1';
+const BASE_URL = '/api/rdstation';
 
 export interface DealLostReason {
   id: number;
