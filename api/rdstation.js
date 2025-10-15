@@ -1,53 +1,57 @@
 // Função serverless para proxy da API do RD Station
-// Evita problemas de CORS ao fazer chamadas do frontend
+export default async function handler(req, res) {
+  // Habilita CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
-const RD_BASE = 'https://crm.rdstation.com/api/v1';
-
-module.exports = async function handler(req, res) {
   try {
-    const token = process.env.VITE_RD_TOKEN || '';
+    const token = process.env.VITE_RD_TOKEN;
     if (!token) {
-      res.status(500).json({ error: 'Missing VITE_RD_TOKEN environment variable' });
+      console.error('Missing VITE_RD_TOKEN environment variable');
+      res.status(500).json({ error: 'Configuration error: missing API token' });
       return;
     }
 
-    // Monta a URL removendo o prefixo /api/rdstation
-    const downstreamPath = (req.url || '').replace(/^\/api\/rdstation/, '') || '';
-    const sep = downstreamPath.includes('?') ? '&' : '?';
-    const url = `${RD_BASE}${downstreamPath}${sep}token=${token}`;
-
-    // Configura headers
-    const headers = { 
-      'accept': 'application/json' 
-    };
+    // Extrai o path após /api/rdstation
+    const { query } = req;
+    const pathMatch = req.url.match(/\/api\/rdstation(.*)$/);
+    const apiPath = pathMatch ? pathMatch[1] : '';
     
-    const contentType = req.headers['content-type'];
-    if (contentType) {
-      headers['content-type'] = String(contentType);
-    }
+    // Monta a URL para o RD Station
+    const baseUrl = 'https://crm.rdstation.com/api/v1';
+    const separator = apiPath.includes('?') ? '&' : '?';
+    const fullUrl = `${baseUrl}${apiPath}${separator}token=${token}`;
+    
+    console.log('Proxying request to:', fullUrl.replace(token, '***'));
 
     // Faz a requisição para o RD Station
-    const upstream = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method: req.method || 'GET',
-      headers: headers,
-      body: (req.method && !['GET', 'HEAD'].includes(req.method))
-        ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body))
-        : undefined,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
     });
 
+    const data = await response.text();
+    
     // Retorna a resposta
-    const text = await upstream.text();
-    res.status(upstream.status);
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.send(text);
-  } catch (err) {
-    console.error('Proxy error:', err);
+    res.status(response.status);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json');
+    res.send(data);
+  } catch (error) {
+    console.error('Proxy error:', error);
     res.status(500).json({ 
-      error: 'Proxy error', 
-      detail: String(err && err.message ? err.message : err) 
+      error: 'Internal proxy error', 
+      message: error.message || 'Unknown error'
     });
   }
-};
+}

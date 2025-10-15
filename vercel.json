@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/rdstation.js": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/rdstation/:path*",
+      "destination": "/api/rdstation"
+    }
+  ]
+}
