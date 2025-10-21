@@ -59,7 +59,7 @@ export default function Dashboard() {
         // Forçar recarregamento da página para atualizar os dados
         window.location.reload()
       }, 1000)
-    }, 15 * 60 * 1000) // 15 minutos em millisegundos
+    }, 2 * 60 * 60 * 1000) // 2 horas em millisegundos
 
     return () => clearInterval(interval)
   }, [])
@@ -209,7 +209,7 @@ const stats = [
               <div>
                 <p className="text-xs text-gray-400">Última atualização</p>
                 <p className="text-sm font-medium text-gray-600">{lastUpdated}</p>
-                <p className="text-xs text-blue-500">Auto-refresh: 15min</p>
+                <p className="text-xs text-blue-500">Auto-refresh: 2h</p>
               </div>
             </div>
           </div>
